@@ -37,7 +37,7 @@ export default function RegisterPage() {
 
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <Link to="/" className="font-display text-2xl font-bold gradient-text mb-2 block">NEXUS AI</Link>
+          <Link to="/" className="font-display text-2xl font-bold gradient-text mb-2 block">INTELLISIGHT</Link>
           <h1 className="text-3xl font-display font-bold text-foreground mt-6 mb-2">Sign up</h1>
           <p className="text-muted-foreground mb-8">Create your account to get started.</p>
 

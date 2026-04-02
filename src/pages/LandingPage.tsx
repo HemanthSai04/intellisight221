@@ -19,7 +19,7 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 border-b border-border/30 bg-background/80 backdrop-blur-xl">
         <div className="container mx-auto flex items-center justify-between h-16 px-6">
-          <Link to="/" className="font-display text-xl font-bold gradient-text">NEXUS AI</Link>
+          <Link to="/" className="font-display text-xl font-bold gradient-text">INTELLISIGHT</Link>
           <div className="flex gap-3">
             <Button variant="ghost" asChild><Link to="/login">Sign In</Link></Button>
             <Button variant="neon" asChild><Link to="/register">Get Started</Link></Button>
@@ -138,7 +138,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-border/30 py-8">
         <div className="container mx-auto px-6 text-center text-muted-foreground text-sm">
-          © 2026 Nexus AI. All rights reserved.
+          © 2026 IntelliSight. All rights reserved.
         </div>
       </footer>
     </div>

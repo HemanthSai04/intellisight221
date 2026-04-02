@@ -71,7 +71,7 @@ export default function DashboardPage() {
       {/* Top bar */}
       <header className="border-b border-border/30 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto flex items-center justify-between h-16 px-6">
-          <Link to="/dashboard" className="font-display text-xl font-bold gradient-text">NEXUS AI</Link>
+          <Link to="/dashboard" className="font-display text-xl font-bold gradient-text">INTELLISIGHT</Link>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="w-5 h-5 text-muted-foreground" />

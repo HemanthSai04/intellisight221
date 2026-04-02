@@ -38,7 +38,7 @@ export default function LoginPage() {
       {/* Right - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <Link to="/" className="font-display text-2xl font-bold gradient-text mb-2 block">NEXUS AI</Link>
+          <Link to="/" className="font-display text-2xl font-bold gradient-text mb-2 block">INTELLISIGHT</Link>
           <h1 className="text-3xl font-display font-bold text-foreground mt-6 mb-2">Sign in</h1>
           <p className="text-muted-foreground mb-8">Welcome back. Sign in to access your dashboard.</p>
 
