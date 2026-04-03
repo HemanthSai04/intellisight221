@@ -93,7 +93,12 @@ const MediapipeGestureCamera = forwardRef<HTMLVideoElement, MediapipeGestureCame
     useEffect(() => {
       return () => {
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
-        stopCamera();
+        // Stop every track so the camera light turns off when navigating away
+        if (videoRef.current && videoRef.current.srcObject) {
+          const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+          tracks.forEach(t => t.stop());
+          videoRef.current.srcObject = null;
+        }
       };
     }, []);
 

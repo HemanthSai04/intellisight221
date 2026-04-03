@@ -11,82 +11,95 @@ declare global {
 
 interface AffectivaCameraViewProps {
   onEmotionsSuccess: (emotions: Record<string, number>) => void;
+  onContainerReady?: (container: HTMLDivElement) => void;
 }
 
-export default function AffectivaCameraView({ onEmotionsSuccess }: AffectivaCameraViewProps) {
+export default function AffectivaCameraView({ onEmotionsSuccess, onContainerReady }: AffectivaCameraViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [detector, setDetector] = useState<any>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Wait for the script to load if it hasn't yet (simple fallback check)
-    if (typeof window === 'undefined') return;
-
-    const initDetector = () => {
-      if (!window.affdex) {
-        setError("Affectiva SDK not loaded yet...");
-        return;
-      }
-      
-      if (containerRef.current && !detector) {
-        setError(null);
-        const w = 640;
-        const h = 480;
-        const faceMode = window.affdex.FaceDetectorMode.LARGE_FACES;
-        
-        // Initialize the Native Affectiva Camera Detector
-        const det = new window.affdex.CameraDetector(containerRef.current, w, h, faceMode);
-        
-        det.detectAllEmotions();
-        det.detectAllExpressions();
-        
-        det.addEventListener("onInitializeSuccess", () => {
-          setIsRunning(true);
-        });
-        
-        det.addEventListener("onWebcamConnectFailure", () => {
-          setError("Webcam access denied. Please allow camera permissions.");
-        });
-
-        det.addEventListener("onImageResultsSuccess", (faces: any[]) => {
-          if (faces && faces.length > 0) {
-            onEmotionsSuccess(faces[0].emotions);
-          }
-        });
-
-        setDetector(det);
-      }
-    };
-
-    // Retry initialization a few times in case the CDN is slow
-    const interval = setInterval(initDetector, 500);
-    setTimeout(() => clearInterval(interval), 5000);
-
-    return () => clearInterval(interval);
-  }, [detector, onEmotionsSuccess]);
-
-  const startCamera = () => {
-    if (detector && !detector.isRunning) {
-      detector.start();
-    }
-  };
-
-  const stopCamera = () => {
-    if (detector && detector.isRunning) {
-      detector.stop();
-      setIsRunning(false);
-    }
-  };
-
-  // Cleanup on unmount
+  // Cleanup on unmount only — do NOT auto-start
   useEffect(() => {
     return () => {
-      if (detector && detector.isRunning) {
-        detector.stop();
+      if (detector) {
+        try { detector.stop(); } catch (_) {}
       }
     };
   }, [detector]);
+
+  const [sdkLoading, setSdkLoading] = useState(false);
+
+  const loadAffdexScript = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (window.affdex) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://download.affectiva.com/js/3.2.1/affdex.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Affectiva SDK'));
+      document.head.appendChild(script);
+    });
+  };
+
+  const startCamera = async () => {
+    if (typeof window === 'undefined' || !containerRef.current) return;
+
+    if (!window.affdex) {
+      setSdkLoading(true);
+      setError(null);
+      try {
+        await loadAffdexScript();
+      } catch {
+        setError('Failed to load Affectiva SDK. Check your internet connection.');
+        setSdkLoading(false);
+        return;
+      }
+      setSdkLoading(false);
+    }
+
+    setError(null);
+    const w = 640;
+    const h = 480;
+    const faceMode = window.affdex.FaceDetectorMode.LARGE_FACES;
+    const det = new window.affdex.CameraDetector(containerRef.current, w, h, faceMode);
+
+    det.detectAllEmotions();
+    det.detectAllExpressions();
+
+    det.addEventListener('onInitializeSuccess', () => {
+      setIsRunning(true);
+      // Notify parent so it can access the injected video element
+      if (onContainerReady && containerRef.current) {
+        onContainerReady(containerRef.current);
+      }
+    });
+
+    det.addEventListener('onWebcamConnectFailure', () => {
+      setError('Webcam access denied. Please allow camera permissions.');
+      setIsRunning(false);
+    });
+
+    det.addEventListener('onImageResultsSuccess', (faces: any[]) => {
+      if (faces && faces.length > 0) {
+        onEmotionsSuccess(faces[0].emotions);
+      }
+    });
+
+    setDetector(det);
+    det.start();
+  };
+
+  const stopCamera = () => {
+    if (detector) {
+      try { detector.stop(); } catch (_) {}
+      setIsRunning(false);
+      setDetector(null);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -125,7 +138,13 @@ export default function AffectivaCameraView({ onEmotionsSuccess }: AffectivaCame
       </div>
       <div className="flex gap-3">
         {!isRunning ? (
-          <Button variant="neon" onClick={startCamera}><Camera className="w-4 h-4 mr-2" /> Start Analysis</Button>
+          <Button variant="neon" onClick={startCamera} disabled={sdkLoading}>
+            {sdkLoading ? (
+              <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" /> Loading SDK...</>
+            ) : (
+              <><Camera className="w-4 h-4 mr-2" /> Start Analysis</>
+            )}
+          </Button>
         ) : (
           <Button variant="neon-outline" onClick={stopCamera}><CameraOff className="w-4 h-4 mr-2" /> Stop</Button>
         )}

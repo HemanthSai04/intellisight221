@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, MutableRefObject } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import { Camera, CameraOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,19 @@ interface LiveFaceCameraProps {
   onRegisterFrame: (descriptor: Float32Array) => void;
   registeredProfiles: faceapi.LabeledFaceDescriptors[];
   isRegistering: boolean;
+  onFaceMatched?: (label: string) => void;
+  stopCameraRef?: MutableRefObject<(() => void) | null>;
 }
 
-export default function LiveFaceCamera({ mode, onRegisterFrame, registeredProfiles, isRegistering }: LiveFaceCameraProps) {
+export default function LiveFaceCamera({ mode, onRegisterFrame, registeredProfiles, isRegistering, onFaceMatched, stopCameraRef }: LiveFaceCameraProps) {
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const { videoRef, streaming, error, startCamera, stopCamera } = useCamera({ onCapture: () => {} });
+
+  // Expose stopCamera to parent via ref
+  useEffect(() => {
+    if (stopCameraRef) stopCameraRef.current = stopCamera;
+    return () => { if (stopCameraRef) stopCameraRef.current = null; };
+  }, [stopCamera, stopCameraRef]);
   
   useEffect(() => {
     if (!streaming || !videoRef.current || !overlayRef.current) return;
@@ -27,6 +35,9 @@ export default function LiveFaceCamera({ mode, onRegisterFrame, registeredProfil
       ? new faceapi.FaceMatcher(registeredProfiles, 0.5) 
       : null;
 
+    let lastDetectTime = 0;
+    const throttleMs = 500;
+
     const detectLoop = async () => {
       if (!active || video.paused || video.ended) return;
 
@@ -38,37 +49,49 @@ export default function LiveFaceCamera({ mode, onRegisterFrame, registeredProfil
         }
 
         if (mode === 'live') {
-          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
-          const detections = await faceapi.detectAllFaces(video, options)
-            .withFaceLandmarks()
-            .withFaceDescriptors();
-            
-          const resizedDetections = faceapi.resizeResults(detections, displaySize);
-          canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
-          
-          resizedDetections.forEach((d) => {
-            const result = faceMatcher ? faceMatcher.findBestMatch(d.descriptor) : new faceapi.FaceMatch('Unknown', d.detection.score);
-            const box = d.detection.box;
-            const drawBox = new faceapi.draw.DrawBox(box, { 
-              label: result.toString(),
-              boxColor: result.label === 'Unknown' ? 'red' : '#00ff00' 
-            });
-            drawBox.draw(canvas);
-          });
-        } else if (mode === 'register' && isRegistering) {
-          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
-          const detection = await faceapi.detectSingleFace(video, options)
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-            
-          if (detection) {
-            const resized = faceapi.resizeResults(detection, displaySize);
+          const now = Date.now();
+          if (now - lastDetectTime >= throttleMs) {
+            lastDetectTime = now;
+            const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+            const detections = await faceapi.detectAllFaces(video, options)
+              .withFaceLandmarks()
+              .withFaceDescriptors();
+              
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
             canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
-            faceapi.draw.drawDetections(canvas, resized);
-            faceapi.draw.drawFaceLandmarks(canvas, resized);
-            onRegisterFrame(detection.descriptor);
-          } else {
-             canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+            
+            resizedDetections.forEach((d) => {
+              const result = faceMatcher ? faceMatcher.findBestMatch(d.descriptor) : new faceapi.FaceMatch('Unknown', d.detection.score);
+              const box = d.detection.box;
+              const drawBox = new faceapi.draw.DrawBox(box, { 
+                label: result.toString(),
+                boxColor: result.label === 'Unknown' ? 'red' : '#00ff00' 
+              });
+              drawBox.draw(canvas);
+              
+              if (result.label !== 'Unknown' && onFaceMatched) {
+                onFaceMatched(result.label);
+              }
+            });
+          }
+        } else if (mode === 'register' && isRegistering) {
+          const now = Date.now();
+          if (now - lastDetectTime >= 300) {
+            lastDetectTime = now;
+            const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+            const detection = await faceapi.detectSingleFace(video, options)
+              .withFaceLandmarks()
+              .withFaceDescriptor();
+              
+            if (detection) {
+              const resized = faceapi.resizeResults(detection, displaySize);
+              canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+              faceapi.draw.drawDetections(canvas, resized);
+              faceapi.draw.drawFaceLandmarks(canvas, resized);
+              onRegisterFrame(detection.descriptor);
+            } else {
+               canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+            }
           }
         } else {
           canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);

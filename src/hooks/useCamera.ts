@@ -28,9 +28,21 @@ export function useCamera({ onCapture }: UseCameraOptions = {}) {
   }, []);
 
   const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
+    // Pause first so the browser flushes the hardware pipeline
+    if (videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause();
+    }
+    // Stop every individual track so the camera indicator light turns off
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => {
+        t.stop();
+      });
+      streamRef.current = null;
+    }
+    // Detach stream from video element
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     setStreaming(false);
   }, []);
 
