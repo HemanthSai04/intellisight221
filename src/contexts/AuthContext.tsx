@@ -20,7 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (localStorage.getItem('mockLoggedIn') === 'true') {
-      const mockUser = { id: 'admin-bypass-1', email: 'admin@nexus.com', user_metadata: { full_name: 'Admin User' } } as User;
+      const mockUser = { 
+        id: 'admin-bypass-1', 
+        email: 'admin@intellisight.ai', 
+        user_metadata: { full_name: 'Admin User' },
+        app_metadata: {},
+        aud: 'authenticated',
+        created_at: new Date().toISOString()
+      } as unknown as User;
       setUser(mockUser);
       setSession({ user: mockUser, access_token: 'mock-token', refresh_token: 'mock-refresh' } as any);
       setLoading(false);
@@ -52,9 +59,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    if (email === 'admin@nexus.com' && password === 'password') {
+    if (email === 'admin@intellisight.ai' && password === 'password') {
       localStorage.setItem('mockLoggedIn', 'true');
-      const mockUser = { id: 'admin-bypass-1', email: 'admin@nexus.com', user_metadata: { full_name: 'Admin User' } } as User;
+      const mockUser = { 
+        id: 'admin-bypass-1', 
+        email: 'admin@intellisight.ai', 
+        user_metadata: { full_name: 'Admin User' },
+        app_metadata: {},
+        aud: 'authenticated',
+        created_at: new Date().toISOString()
+      } as unknown as User;
       setUser(mockUser);
       setSession({ user: mockUser, access_token: 'mock-token', refresh_token: 'mock-refresh' } as any);
       return { error: null };
